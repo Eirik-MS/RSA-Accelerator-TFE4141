@@ -1,0 +1,71 @@
+
+# ============================================================
+# .gitignore for the TFE4141 RSA accelerator project
+# The Vivado projects are rebuilt with regenerate_projects.tcl,
+# so only sources, testbenches, constraints, block designs,
+# IP definitions and Tcl scripts are tracked.
+# ============================================================
+
+# --- Generated Vivado projects (recreated by generate_project.tcl)
+/Exponentiation/Exponentiation/
+/RSA_accelerator/RSA_accelerator/
+/RSA_soc/RSA_soc/
+
+# --- Packaged IP (recreated by generate_IP.tcl)
+/RSA_accelerator/IP/
+
+# --- Block design: keep the design files, ignore what Vivado
+#     generates next to the .bd (ip/, hdl/, synth/, sim/, ui/ ...)
+/RSA_soc/boards/*
+!/RSA_soc/boards/rsa_soc.bd
+!/RSA_soc/boards/rsa_soc.bxml
+!/RSA_soc/boards/rsa_soc_ooc.xdc
+
+# --- Build output: keep the (empty) folders, ignore their contents
+/Bitfiles/*
+!/Bitfiles/.gitkeep
+/Reports/*
+!/Reports/.gitkeep
+
+# --- Vivado generated folders, wherever they show up
+*.cache/
+*.hw/
+*.runs/
+*.sim/
+*.gen/
+*.ip_user_files/
+.Xil/
+NA/
+.hbs/
+
+# --- Vivado logs, journals and backups
+*.jou
+*.log
+*.str
+*.backup.*
+vivado_pid*.zip
+webtalk*
+usage_statistics_webtalk.*
+
+# --- Simulation output (xsim)
+xsim.dir/
+*.wdb
+*.pb
+xvhdl.*
+xelab.*
+xsim.*
+
+# --- Hardware output outside Bitfiles/
+*.bit
+*.ltx
+*.hwh
+*.xsa
+
+# --- Editors and OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
