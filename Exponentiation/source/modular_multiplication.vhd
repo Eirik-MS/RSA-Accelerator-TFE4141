@@ -57,11 +57,9 @@ architecture mod_mul_behave of modular_multiplication is
     signal extended_n : unsigned(C_block_size+1 downto 0);
     signal doubled_n : unsigned(C_block_size+1 downto 0);
 
-    signal greater_n : std_logic;
-    signal greater_2n : std_logic;
+    signal sub_n  : unsigned(C_block_size+1 downto 0);
+    signal sub_2n : unsigned(C_block_size+1 downto 0);
 
-    signal subtraction_operand : unsigned(C_block_size+1 downto 0);
-    signal reduced_result : unsigned(C_block_size+1 downto 0);
 
     signal s_next : unsigned(C_block_size-1 downto 0);
 
@@ -95,37 +93,30 @@ begin
     doubled_n <= shift_left(extended_n, 1);
 
     -- ============================================================
-    -- 8. COMPARATORS
+    -- 8. PARALLEL SUBTRACTORS: T - N AND T - 2N
     -- ============================================================
 
-    greater_n <= '1' when addition_result >= extended_n
-                 else '0';
+    -- Both are computed at the same time from the adder output.
+    -- T < 3N < 2^(k+2), so the MSB is '1' exactly when the
+    -- subtraction went negative. This replaces the comparators.
 
-    greater_2n <= '1' when addition_result >= doubled_n
-                  else '0';
+    sub_n  <= addition_result - extended_n;
 
-    -- ============================================================
-    -- 9. MULTIPLEXER: SELECT WHAT TO SUBTRACT
-    -- ============================================================
-
-    subtraction_operand <= doubled_n when greater_2n = '1'
-                           else extended_n when greater_n = '1'
-                           else (others => '0');
+    sub_2n <= addition_result - doubled_n;
 
     -- ============================================================
-    -- 10. SUBTRACTOR: MODULAR REDUCTION
+    -- 9. MULTIPLEXER: SELECT REDUCED RESULT
     -- ============================================================
 
-    reduced_result <= addition_result - subtraction_operand;
+    s_next <= sub_2n(C_block_size-1 downto 0)
+                  when sub_2n(C_block_size+1) = '0'
+              else sub_n(C_block_size-1 downto 0)
+                  when sub_n(C_block_size+1) = '0'
+              else addition_result(C_block_size-1 downto 0);
+
 
     -- ============================================================
-    -- 11. FEEDBACK TO S REGISTER
-    -- ============================================================
-
-    s_next <= reduced_result(C_block_size-1 downto 0);
-
-    -- ============================================================
-    -- 12. SEQUENTIAL PROCESS: REGISTERS AND FSM
+    -- 10. SEQUENTIAL PROCESS: REGISTERS AND FSM
     -- ============================================================
 
     process(clk, reset_n)
