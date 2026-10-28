@@ -66,6 +66,8 @@ entity rsa_core is
 end rsa_core;
 
 architecture rtl of rsa_core is
+	signal msgin_ready_i : std_logic;
+	signal last_r        : std_logic;
 
 begin
 	i_exponentiation : entity work.exponentiation
@@ -76,7 +78,7 @@ begin
 			message   => msgin_data  ,
 			key       => key_e_d     ,
 			valid_in  => msgin_valid ,
-			ready_in  => msgin_ready ,
+			ready_in  => msgin_ready_i,
 			ready_out => msgout_ready,
 			valid_out => msgout_valid,
 			result    => msgout_data ,
@@ -85,6 +87,22 @@ begin
 			reset_n   => reset_n
 		);
 
-	msgout_last  <= msgin_last;
+	msgin_ready  <= msgin_ready_i;
+
+	-- rsa_msgin already holds the next message (and its last flag) while
+	-- the current one is computed, so store the flag when the message is
+	-- accepted and send it out together with the result.
+	last_proc : process(clk, reset_n)
+	begin
+		if reset_n = '0' then
+			last_r <= '0';
+		elsif rising_edge(clk) then
+			if msgin_valid = '1' and msgin_ready_i = '1' then
+				last_r <= msgin_last;
+			end if;
+		end if;
+	end process;
+
+	msgout_last  <= last_r;
 	rsa_status   <= (others => '0');
 end rtl;

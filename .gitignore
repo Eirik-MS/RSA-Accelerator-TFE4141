@@ -69,3 +69,5 @@ xsim.*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+ghdl_work/
