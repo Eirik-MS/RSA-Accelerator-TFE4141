@@ -1,6 +1,8 @@
 # Parallel RSA cores
 
-`rsa_core` now instantiates two unchanged exponentiation units by default.
+`rsa_core` now instantiates eight exponentiation units by default. The
+multicore testbench also defaults to eight; use `CORE_COUNT=1` or `2` for
+comparisons. The fully verified historical baseline used two cores.
 The added `C_CORE_COUNT` generic supports one core for comparison and larger
 counts for experiments. The existing accelerator instantiation needs no port
 changes, and its key registers, DMA interface, and status value are unchanged.
@@ -59,7 +61,7 @@ Regenerate the accelerator project/IP, rebuild the SoC, and export a fresh
 matching `.bit`/`.hwh` pair using the project's normal Vivado flow. Inspect
 post-route utilization and timing; maintaining 100 MHz is not guaranteed.
 Run all six RSA notebook cases on the board and compare repeated timings.
-No register-map or notebook changes are required just to select two cores.
+No register-map or notebook changes are required just to select eight cores.
 
 At verified baseline `90fbcdc`, the single-core arithmetic source files were
 unchanged. Subsequent clock/datapath timing candidates are described in
@@ -96,3 +98,26 @@ supplied routed reports describe the older single-core design and show
 **WNS -4.987 ns at 100 MHz**, plus primary-clock definition warnings. Address
 those issues and obtain new routed reports before claiming reliable 100 MHz
 operation of the parallel design.
+
+## Eight-core experiment
+
+The default core count is eight. No scheduling or arithmetic change accompanies
+this count change. To run the eight-core full course test explicitly:
+
+```sh
+sh RSA_accelerator/testbench/run_multicore.sh -gCORE_COUNT=8 -gCOURSE_BLOCKS=882
+```
+
+882 blocks require 111 groups of up to eight. At the existing per-block latency,
+the expected arithmetic time is roughly **112 ms at 100 MHz**, including the
+partly filled final group. This is a simulation projection. The earlier 53%
+LUT estimate was based on the old single-core arithmetic; the carry-save timing
+candidate and scheduling can change that estimate. A new Vivado implementation
+must confirm fit, clock constraints, and timing. The complete 882-block pass
+recorded above belongs to the earlier two-core baseline, not this experiment.
+
+Eight-core short integration checks passed, including stalls, reset, packet
+flags, ordering, and filling all eight cores. The 32-block fixed-key batch
+completed in **4,163 cycles**, versus 33,248 with one core (about 7.99x
+throughput). GHDL synthesis also passed. The eight-core full course simulation
+and Vivado routed verification have not been performed.

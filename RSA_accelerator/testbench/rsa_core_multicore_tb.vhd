@@ -7,7 +7,7 @@ use std.env.all;
 
 entity rsa_core_multicore_tb is
     generic (
-        CORE_COUNT : positive := 2;
+        CORE_COUNT : positive := 8;
         COURSE_BLOCKS : natural := 0; -- 0 = quick functional tests only
         INPUT_FILE : string := "ct4_in.hex";
         EXPECTED_FILE : string := "pt4_expected.hex"

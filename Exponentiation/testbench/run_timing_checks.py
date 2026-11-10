@@ -38,7 +38,8 @@ def main():
         tests = [("modmult_regression_tb", []), ("modular_multiplication_tb", []),
                  ("exponentiation_tb", []),
                  ("rsa_core_multicore_tb", ["-gCORE_COUNT=1"]),
-                 ("rsa_core_multicore_tb", ["-gCORE_COUNT=2"])]
+                 ("rsa_core_multicore_tb", ["-gCORE_COUNT=2"]),
+                 ("rsa_core_multicore_tb", ["-gCORE_COUNT=8"])]
         for entity, args in tests:
             print("Checking", entity, *args, flush=True)
             run("ghdl", "-e", "--std=08", entity)
