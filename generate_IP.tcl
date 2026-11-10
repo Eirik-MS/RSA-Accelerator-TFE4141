@@ -13,6 +13,15 @@ cd [file dirname [file normalize [info script]]]
 #this was created by doing the steps and recording the necessarry tcl commands
 
 open_project [file normalize $Project_directory]
+
+# A primary clock on the packaged accelerator input must not redefine the
+# processing-system clock when the IP is integrated into RSA_soc. Keep the
+# standalone clock constraint for IP out-of-context runs only (UG1118).
+set accelerator_clock_xdc [get_files -of_objects [get_filesets constrs_1] *PYNQ-Z1_C.xdc]
+if {[llength $accelerator_clock_xdc] != 1} {
+    error "Expected the accelerator's standalone clock XDC before packaging"
+}
+set_property USED_IN {synthesis implementation out_of_context} $accelerator_clock_xdc
 ipx::package_project -root_dir [file normalize "${IP_directory}/"] -vendor xilinx.com -library user -taxonomy /UserIP -import_files -set_current false
 ipx::unload_core [file normalize "${IP_directory}/component.xml"]
 ipx::edit_ip_in_project -upgrade true -name tmp_edit_project -directory [file normalize "${IP_directory}/IP"] [file normalize "${IP_directory}/component.xml"]

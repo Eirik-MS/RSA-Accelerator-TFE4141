@@ -61,8 +61,10 @@ post-route utilization and timing; maintaining 100 MHz is not guaranteed.
 Run all six RSA notebook cases on the board and compare repeated timings.
 No register-map or notebook changes are required just to select two cores.
 
-The single-core arithmetic source files are intentionally unchanged. The
-original exponentiation-only baseline still tests a single arithmetic unit.
+At verified baseline `90fbcdc`, the single-core arithmetic source files were
+unchanged. Subsequent clock/datapath timing candidates are described in
+`TIMING_CHANGES.md` and need their own full-course and routed verification.
+The original exponentiation-only baseline still tests a single arithmetic unit.
 
 ## Initial verification
 

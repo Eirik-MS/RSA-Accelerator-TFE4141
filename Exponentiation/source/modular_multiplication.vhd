@@ -37,7 +37,8 @@ architecture mod_mul_behave of modular_multiplication is
 
     signal a_reg : unsigned(C_block_size-1 downto 0) := (others => '0');
     signal b_reg : unsigned(C_block_size-1 downto 0) := (others => '0');
-    signal n_reg : unsigned(C_block_size-1 downto 0) := (others => '0');
+    -- Precompute -N when accepting operands, off the per-bit feedback path.
+    signal negative_n_reg : unsigned(C_block_size+1 downto 0) := (others => '0');
     signal s_reg : unsigned(C_block_size-1 downto 0) := (others => '0');
 
     -- Number of multiplier bits remaining
@@ -54,8 +55,8 @@ architecture mod_mul_behave of modular_multiplication is
     signal selected_a : unsigned(C_block_size+1 downto 0);
     signal addition_result : unsigned(C_block_size+1 downto 0);
 
-    signal extended_n : unsigned(C_block_size+1 downto 0);
-    signal doubled_n : unsigned(C_block_size+1 downto 0);
+    signal negative_2n : unsigned(C_block_size+1 downto 0);
+    signal sum_n, carry_n, sum_2n, carry_2n : unsigned(C_block_size+1 downto 0);
 
     signal sub_n  : unsigned(C_block_size+1 downto 0);
     signal sub_2n : unsigned(C_block_size+1 downto 0);
@@ -85,24 +86,27 @@ begin
     addition_result <= shifted_s + selected_a;
 
     -- ============================================================
-    -- 7. MODULUS VALUES: N AND 2*N
+    -- 7. CARRY-SAVE REDUCTION CANDIDATES
     -- ============================================================
 
-    extended_n <= resize(n_reg, C_block_size+2);
+    -- Addition modulo 2^(k+2) gives T-N and T-2N. Compress the three
+    -- operands with local XOR/majority logic, then propagate carry ONCE.
+    -- This avoids cascading the T adder into a full-width subtractor.
+    -- negative_2n is just wiring; -N was registered at operand acceptance.
+    negative_2n <= shift_left(negative_n_reg, 1);
+    sum_n <= shifted_s xor selected_a xor negative_n_reg;
+    carry_n <= shift_left((shifted_s and selected_a) or
+                         (shifted_s and negative_n_reg) or
+                         (selected_a and negative_n_reg), 1);
+    sum_2n <= shifted_s xor selected_a xor negative_2n;
+    carry_2n <= shift_left((shifted_s and selected_a) or
+                          (shifted_s and negative_2n) or
+                          (selected_a and negative_2n), 1);
+    sub_n <= sum_n + carry_n;
+    sub_2n <= sum_2n + carry_2n;
 
-    doubled_n <= shift_left(extended_n, 1);
-
-    -- ============================================================
-    -- 8. PARALLEL SUBTRACTORS: T - N AND T - 2N
-    -- ============================================================
-
-    -- Both are computed at the same time from the adder output.
-    -- T < 3N < 2^(k+2), so the MSB is '1' exactly when the
-    -- subtraction went negative. This replaces the comparators.
-
-    sub_n  <= addition_result - extended_n;
-
-    sub_2n <= addition_result - doubled_n;
+    -- For 0 <= A,S < N, T=2*S+b_i*A < 3*N. Both T-N and T-2N
+    -- fit signed (k+2) bits, so the top bit still indicates negativity.
 
     -- ============================================================
     -- 9. MULTIPLEXER: SELECT REDUCED RESULT
@@ -128,7 +132,7 @@ begin
             
             a_reg <= (others => '0');
             b_reg <= (others => '0');
-            n_reg <= (others => '0');
+            negative_n_reg <= (others => '0');
             s_reg <= (others => '0');
 
             bits_left <= 0;
@@ -148,7 +152,8 @@ begin
                         -- Load operands into registers
                         a_reg <= unsigned(a);
                         b_reg <= unsigned(b);
-                        n_reg <= unsigned(n);
+                        negative_n_reg <= to_unsigned(0, C_block_size+2) -
+                                          resize(unsigned(n), C_block_size+2);
 
                         -- Iniitialize partial result
                         s_reg <= (others => '0');
