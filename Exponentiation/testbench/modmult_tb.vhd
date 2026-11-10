@@ -11,15 +11,15 @@ end modular_multiplication_tb;
 
 architecture tb of modular_multiplication_tb is
 
-	constant WIDTH      : positive := 256;
+	constant C_BLOCK_SIZE      : positive := 256;
 	constant CLK_PERIOD : time     := 10 ns;
 	constant MAX_CYCLES : natural  := 2000;   -- timeout per multiplication
 
 	signal clk      : std_logic := '0';
 	signal reset_n  : std_logic := '0';
 	signal start    : std_logic := '0';
-	signal a, b, n  : std_logic_vector(WIDTH-1 downto 0) := (others => '0');
-	signal result   : std_logic_vector(WIDTH-1 downto 0);
+	signal a, b, n  : std_logic_vector(C_BLOCK_SIZE-1 downto 0) := (others => '0');
+	signal result   : std_logic_vector(C_BLOCK_SIZE-1 downto 0);
 	signal done     : std_logic;
 	signal sim_done : boolean := false;
 
@@ -29,7 +29,7 @@ begin
 	clk <= not clk after CLK_PERIOD/2 when not sim_done;
 
 	dut : entity work.modular_multiplication
-		generic map ( WIDTH => WIDTH )
+		generic map ( C_BLOCK_SIZE => C_block_size )
 		port map (
 			clk     => clk,
 			reset_n => reset_n,
@@ -46,10 +46,10 @@ begin
 
 		procedure run_test(
 			constant name     : in string;
-			constant a_in     : in std_logic_vector(WIDTH-1 downto 0);
-			constant b_in     : in std_logic_vector(WIDTH-1 downto 0);
-			constant n_in     : in std_logic_vector(WIDTH-1 downto 0);
-			constant expected : in std_logic_vector(WIDTH-1 downto 0)
+			constant a_in     : in std_logic_vector(C_BLOCK_SIZE-1 downto 0);
+			constant b_in     : in std_logic_vector(C_BLOCK_SIZE-1 downto 0);
+			constant n_in     : in std_logic_vector(C_BLOCK_SIZE-1 downto 0);
+			constant expected : in std_logic_vector(C_BLOCK_SIZE-1 downto 0)
 		) is
 			variable cycles : natural := 0;
 		begin
@@ -88,7 +88,7 @@ begin
 		-- helper for small numbers
 		function v(x : natural) return std_logic_vector is
 		begin
-			return std_logic_vector(to_unsigned(x, WIDTH));
+			return std_logic_vector(to_unsigned(x, C_BLOCK_SIZE));
 		end function;
 
 	begin
