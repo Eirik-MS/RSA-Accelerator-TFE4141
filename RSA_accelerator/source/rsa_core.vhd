@@ -10,11 +10,8 @@
 --                public domain (UNLICENSE)
 --------------------------------------------------------------------------------
 -- Purpose:
---   RSA encryption core template. This core currently computes
---   C = M xor key_n
---
---   Replace/change this module so that it implements the function
---   C = M**key_e mod key_n.
+--   Parallel RSA exponentiation cores with ordered input/output.
+--   Computes C = M**key_e mod key_n, preserving packet boundaries.
 --------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -22,7 +19,8 @@ use ieee.numeric_std.all;
 entity rsa_core is
 	generic (
 		-- Users to add parameters here
-		C_BLOCK_SIZE          : integer := 256
+		C_BLOCK_SIZE          : integer := 256;
+		C_CORE_COUNT          : positive := 2
 	);
 	port (
 		-----------------------------------------------------------------------------
@@ -66,43 +64,55 @@ entity rsa_core is
 end rsa_core;
 
 architecture rtl of rsa_core is
-	signal msgin_ready_i : std_logic;
-	signal last_r        : std_logic;
+    type block_array is array (natural range <>) of std_logic_vector(C_BLOCK_SIZE-1 downto 0);
+    signal results : block_array(0 to C_CORE_COUNT-1);
+    signal input_valid, input_ready, output_valid, output_ready : std_logic_vector(0 to C_CORE_COUNT-1);
+    signal last_flags : std_logic_vector(0 to C_CORE_COUNT-1);
+    signal dispatch_index, retire_index : natural range 0 to C_CORE_COUNT-1 := 0;
 
+    function advance(index : natural) return natural is
+    begin
+        if index = C_CORE_COUNT-1 then return 0; end if;
+        return index + 1;
+    end function;
 begin
-	i_exponentiation : entity work.exponentiation
-		generic map (
-			C_block_size => C_BLOCK_SIZE
-		)
-		port map (
-			message   => msgin_data  ,
-			key       => key_e_d     ,
-			valid_in  => msgin_valid ,
-			ready_in  => msgin_ready_i,
-			ready_out => msgout_ready,
-			valid_out => msgout_valid,
-			result    => msgout_data ,
-			modulus   => key_n       ,
-			clk       => clk         ,
-			reset_n   => reset_n
-		);
+    -- Strict round robin at BOTH ends preserves order even if a later core
+    -- finishes first. Each exponentiation unit holds its result until accepted,
+    -- so its DONE state also serves as a one-entry output buffer.
+    msgin_ready <= input_ready(dispatch_index) when reset_n = '1' else '0';
+    msgout_valid <= output_valid(retire_index) when reset_n = '1' else '0';
+    msgout_data <= results(retire_index);
+    msgout_last <= last_flags(retire_index);
+    rsa_status <= (others => '0');
 
-	msgin_ready  <= msgin_ready_i;
+    cores : for i in 0 to C_CORE_COUNT-1 generate
+        input_valid(i) <= msgin_valid when dispatch_index = i and reset_n = '1' else '0';
+        output_ready(i) <= msgout_ready when retire_index = i and reset_n = '1' else '0';
+        exponentiator : entity work.exponentiation
+            generic map (C_block_size => C_BLOCK_SIZE)
+            port map (
+                clk => clk, reset_n => reset_n,
+                message => msgin_data, key => key_e_d, modulus => key_n,
+                valid_in => input_valid(i), ready_in => input_ready(i),
+                valid_out => output_valid(i), ready_out => output_ready(i),
+                result => results(i)
+            );
+    end generate;
 
-	-- rsa_msgin already holds the next message (and its last flag) while
-	-- the current one is computed, so store the flag when the message is
-	-- accepted and send it out together with the result.
-	last_proc : process(clk, reset_n)
-	begin
-		if reset_n = '0' then
-			last_r <= '0';
-		elsif rising_edge(clk) then
-			if msgin_valid = '1' and msgin_ready_i = '1' then
-				last_r <= msgin_last;
-			end if;
-		end if;
-	end process;
-
-	msgout_last  <= last_r;
-	rsa_status   <= (others => '0');
+    schedule : process(clk, reset_n)
+    begin
+        if reset_n = '0' then
+            dispatch_index <= 0;
+            retire_index <= 0;
+            last_flags <= (others => '0');
+        elsif rising_edge(clk) then
+            if msgin_valid = '1' and input_ready(dispatch_index) = '1' then
+                last_flags(dispatch_index) <= msgin_last;
+                dispatch_index <= advance(dispatch_index);
+            end if;
+            if msgout_ready = '1' and output_valid(retire_index) = '1' then
+                retire_index <= advance(retire_index);
+            end if;
+        end if;
+    end process;
 end rtl;
